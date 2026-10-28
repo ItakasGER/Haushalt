@@ -16,7 +16,7 @@ App Store sind dafür nicht nötig.
 Die App liegt auf GitHub Pages und wird bei jedem Push auf `main` automatisch neu
 gebaut und veröffentlicht (`.github/workflows/deploy.yml`):
 
-**https://itakasger.github.io/haushalt/**
+**https://itakasger.github.io/Haushalt/**
 
 Die Adresse ist öffentlich, enthält aber **keine** Finanzdaten. Die liegen
 ausschließlich lokal auf dem iPad.
