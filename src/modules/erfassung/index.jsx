@@ -53,7 +53,7 @@ function Erfassung() {
           </div>
           <div className="flex items-center gap-3">
             {savedMonth && <span className="text-sm" style={{ color: COLORS.income }}>{monthLabel(savedMonth)} gespeichert ✓</span>}
-            <Button variant="primary" onClick={() => setSavedMonth(takeMonthSnapshot())}><Save size={16} /> Monat speichern</Button>
+            <Button variant="primary" onClick={() => setSavedMonth(takeMonthSnapshot())}><Save size={16} /> Monat speichern (inkl. Depotstand)</Button>
           </div>
         </div>
       </Card>

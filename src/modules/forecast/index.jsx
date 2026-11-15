@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { LineChart as LineIcon, PiggyBank, TrendingUp, Wallet } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { LineChart as LineIcon, PiggyBank, Target, TrendingUp, Wallet } from 'lucide-react';
 import { COLORS, STRUKTUR_COLORS } from '../../core/theme.js';
 import { fmtEUR, fmtEURDetailed } from '../../core/format.js';
 import { futureValue, LINK_GROUP_LABELS } from '../../core/finance.js';
-import { usePlan } from '../../core/PlanContext.jsx';
+import { usePlan, useModuleData } from '../../core/PlanContext.jsx';
 import { Card, Dot, EmptyState, NumberField, SummaryCard } from '../../ui/components.jsx';
 
 const SCENARIOS = {
@@ -12,13 +12,25 @@ const SCENARIOS = {
   basis: { label: 'Basis', delta: 0 },
   optimistisch: { label: 'Optimistisch', delta: 2 },
 };
-const FORECAST_YEARS = [1, 3, 5];
-const CHART_YEARS = [0, 1, 2, 3, 4, 5];
+// Horizont → Stützjahre für die Tabellen
+const HORIZONS = { 5: [1, 3, 5], 10: [1, 5, 10], 20: [5, 10, 20], 30: [10, 20, 30] };
+const DEFAULT_SETTINGS = { horizon: 5, real: false, inflation: 2, target: '' };
 const GROUPS = Object.keys(LINK_GROUP_LABELS);
 
 function Forecast() {
   const { budget, investments, updateItem } = usePlan();
   const [scenario, setScenario] = useState('basis');
+  const [stored, setSettings] = useModuleData('forecast', DEFAULT_SETTINGS);
+  const settings = { ...DEFAULT_SETTINGS, ...stored };
+  const horizon = HORIZONS[settings.horizon] ? settings.horizon : 5;
+  const FORECAST_YEARS = HORIZONS[horizon];
+  const CHART_YEARS = Array.from({ length: horizon + 1 }, (_, i) => i);
+  const inflation = Math.max(Number(settings.inflation) || 0, 0);
+  const target = Number(settings.target) || 0;
+  const update = (patch) => setSettings(prev => ({ ...DEFAULT_SETTINGS, ...prev, ...patch }));
+  // In heutiger Kaufkraft: Endwert durch die aufgelaufene Inflation teilen
+  const deflate = (value, years) => (settings.real ? value / Math.pow(1 + inflation / 100, years) : value);
+  const fv = (r, years) => deflate(futureValue(r.currentValue, r.monthly, r.rendite, r.verbrauch, years), years);
   const delta = SCENARIOS[scenario].delta;
 
   const rows = GROUPS.flatMap(group =>
@@ -34,13 +46,16 @@ function Forecast() {
 
   const totalCurrentValue = rows.reduce((a, r) => a + r.currentValue, 0);
   const totalMonthly = rows.reduce((a, r) => a + r.monthly, 0);
-  const totalInYears = (years) => rows.reduce((a, r) => a + futureValue(r.currentValue, r.monthly, r.rendite, r.verbrauch, years), 0);
+  const totalInYears = (years) => rows.reduce((a, r) => a + fv(r, years), 0);
+  // Erstes Jahr (bis 60), in dem das Zielvermögen erreicht wird
+  let targetYear = null;
+  if (target > 0) for (let y = 0; y <= 60; y++) { if (totalInYears(y) >= target) { targetYear = y; break; } }
 
   const chartData = CHART_YEARS.map(year => {
     const point = { year: `${year}J` };
     GROUPS.forEach(group => {
       point[group] = rows.filter(r => r.group === group)
-        .reduce((a, r) => a + futureValue(r.currentValue, r.monthly, r.rendite, r.verbrauch, year), 0);
+        .reduce((a, r) => a + fv(r, year), 0);
     });
     return point;
   });
@@ -57,25 +72,55 @@ function Forecast() {
             </button>
           ))}
         </div>
+        <span className="text-xs font-semibold ml-2" style={{ color: COLORS.textMuted }}>HORIZONT</span>
+        <div className="inline-flex rounded-lg p-1 gap-1" style={{ backgroundColor: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
+          {Object.keys(HORIZONS).map(h => (
+            <button key={h} onClick={() => update({ horizon: Number(h) })} className="min-h-[40px] px-3 rounded-md text-sm font-medium"
+              style={{ backgroundColor: horizon === Number(h) ? COLORS.primary : 'transparent', color: horizon === Number(h) ? '#fff' : COLORS.textMuted }}>
+              {h} J
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl px-4 py-2.5" style={{ backgroundColor: COLORS.surface, border: `1px solid ${COLORS.border}` }}>
+        <label className="flex items-center gap-2 text-sm min-h-[40px]">
+          <input type="checkbox" checked={settings.real} onChange={e => update({ real: e.target.checked })} className="w-5 h-5" style={{ accentColor: COLORS.primary }} />
+          In heutiger Kaufkraft (inflationsbereinigt)
+        </label>
+        <span className="flex items-center gap-2 text-sm" style={{ opacity: settings.real ? 1 : 0.45 }}>
+          Inflation p.a.
+          <NumberField value={settings.inflation} suffix="%" className="w-16" onCommit={v => update({ inflation: v })} aria-label="Inflation" disabled={!settings.real} />
+        </span>
+        <span className="flex items-center gap-2 text-sm">
+          <Target size={16} style={{ color: COLORS.textMuted }} /> Zielvermögen
+          <NumberField value={settings.target} suffix="€" className="w-28" onCommit={v => update({ target: v })} aria-label="Zielvermögen" placeholder="optional" />
+        </span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryCard icon={<Wallet size={16} />} label="Verknüpfter Depotwert" value={fmtEUR(totalCurrentValue)}
           sub={`${investments.filter(p => p.zielId).length} von ${investments.length} Titeln verknüpft`} />
         <SummaryCard icon={<PiggyBank size={16} />} label="Monatliche Sparrate" value={fmtEUR(totalMonthly)} sub="Altersvorsorge + Sparen + Investieren" />
-        <SummaryCard icon={<TrendingUp size={16} />} label="Prognose in 1 Jahr" value={fmtEUR(totalInYears(1))} />
-        <SummaryCard icon={<TrendingUp size={16} />} label="Prognose in 5 Jahren" value={fmtEUR(totalInYears(5))} />
+        <SummaryCard icon={<TrendingUp size={16} />} label={`Prognose in ${horizon} Jahren`} value={fmtEUR(totalInYears(horizon))}
+          sub={settings.real ? `in heutiger Kaufkraft (${String(inflation).replace('.', ',')} % Inflation)` : 'nominal'} />
+        {target > 0
+          ? <SummaryCard icon={<Target size={16} />} label={`Ziel ${fmtEUR(target)}`} value={targetYear === null ? '> 60 Jahre' : targetYear === 0 ? 'erreicht' : `in ${targetYear} ${targetYear === 1 ? 'Jahr' : 'Jahren'}`}
+              valueColor={targetYear !== null && targetYear <= horizon ? COLORS.income : COLORS.warn}
+              sub={targetYear !== null && targetYear > 0 ? `im Jahr ${new Date().getFullYear() + targetYear}` : targetYear === null ? 'Sparrate oder Rendite zu niedrig' : ''} />
+          : <SummaryCard icon={<TrendingUp size={16} />} label="Prognose in 1 Jahr" value={fmtEUR(totalInYears(1))} sub={settings.real ? 'in heutiger Kaufkraft' : 'nominal'} />}
       </div>
 
-      <Card title={`VERMÖGENSPROGNOSE 1–5 JAHRE (SZENARIO: ${SCENARIOS[scenario].label.toUpperCase()})`}>
+      <Card title={`VERMÖGENSPROGNOSE ${horizon} JAHRE · ${SCENARIOS[scenario].label.toUpperCase()} · ${settings.real ? 'REAL' : 'NOMINAL'}`}>
         {totalCurrentValue === 0 && totalMonthly === 0 ? <EmptyState text="Noch keine Beiträge oder verknüpften Titel." /> : (
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} interval={horizon > 10 ? 4 : 0} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(v) => fmtEURDetailed(v)} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
+              {target > 0 && <ReferenceLine y={target} stroke={COLORS.expense} strokeDasharray="6 4" label={{ value: `Ziel ${fmtEUR(target)}`, position: 'insideTopLeft', fontSize: 11, fill: COLORS.expense }} />}
               {GROUPS.map(g => (
                 <Area key={g} type="monotone" dataKey={g} name={LINK_GROUP_LABELS[g]} stackId="1"
                   stroke={STRUKTUR_COLORS[LINK_GROUP_LABELS[g]]} fill={STRUKTUR_COLORS[LINK_GROUP_LABELS[g]]} fillOpacity={0.55} />
@@ -120,7 +165,7 @@ function Forecast() {
                         onCommit={v => updateItem(r.group, r.item.id, { verbrauch: v })} aria-label={`Verbrauch ${r.item.name}`} />
                     </td>
                     {FORECAST_YEARS.map(y => (
-                      <td key={y} className="py-1.5 text-right font-medium tabular-nums">{fmtEUR(futureValue(r.currentValue, r.monthly, r.rendite, r.verbrauch, y))}</td>
+                      <td key={y} className="py-1.5 text-right font-medium tabular-nums">{fmtEUR(fv(r, y))}</td>
                     ))}
                   </tr>
                 ))}

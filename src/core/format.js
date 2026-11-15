@@ -6,7 +6,8 @@ export const fmtNumber = (n) => (n === '' || n === null || n === undefined) ? ''
 export const parseNumber = (text) => {
   let s = String(text ?? '').trim().replace(/\s|€|%/g, '');
   if (s === '') return '';
-  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  // Punkt ist Tausendertrenner, wenn ein Komma folgt oder er Dreiergruppen bildet ("2.100" = 2100)
+  if (s.includes(',') || /^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
   const n = Number(s);
   return Number.isFinite(n) ? n : '';
 };

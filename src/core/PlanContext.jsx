@@ -6,6 +6,7 @@ import { storage } from './storage.js';
 import { runMigrations } from './migrations.js';
 import { DEFAULT_BUDGET, BLANK_BUDGET } from './defaults.js';
 import { computeTotals } from './finance.js';
+import { buildDepotSnapshot } from './performance.js';
 import { todayISO, uid } from './format.js';
 
 const PlanContext = createContext(null);
@@ -13,6 +14,7 @@ const PlanContext = createContext(null);
 const loadPlanData = (id) => ({
   budget: { ...DEFAULT_BUDGET, ...storage.getJSON(`plan:${id}:budget`, {}) },
   investments: storage.getJSON(`plan:${id}:investments`, []),
+  depotHistory: storage.getJSON(`plan:${id}:depot-history`, []),
 });
 
 function loadState() {
@@ -28,7 +30,7 @@ export function PlanProvider({ children }) {
   const [saveError, setSaveError] = useState('');
   // Wird erhöht, wenn Daten von außen ersetzt werden (z. B. Backup-Import)
   const [dataVersion, setDataVersion] = useState(0);
-  const { plans, activePlanId, budget, investments } = state;
+  const { plans, activePlanId, budget, investments, depotHistory } = state;
 
   const persist = useCallback((key, value, errorText) => {
     try {
@@ -49,6 +51,16 @@ export function PlanProvider({ children }) {
     persist(`plan:${activePlanId}:investments`, next, 'Speichern der Investments fehlgeschlagen.');
   }, [activePlanId, persist]);
 
+  const saveDepotHistory = useCallback((next) => {
+    setState(s => ({ ...s, depotHistory: next }));
+    persist(`plan:${activePlanId}:depot-history`, next, 'Speichern der Depot-Historie fehlgeschlagen.');
+  }, [activePlanId, persist]);
+
+  // Ersetzt einen vorhandenen Stand desselben Monats
+  const putDepotSnapshot = (entry) => saveDepotHistory(
+    [...depotHistory.filter(h => h.month !== entry.month), entry].sort((a, b) => a.month.localeCompare(b.month))
+  );
+
   const savePlans = (next) => {
     setState(s => ({ ...s, plans: next }));
     persist('plans-index', next, 'Speichern der Planliste fehlgeschlagen.');
@@ -68,14 +80,15 @@ export function PlanProvider({ children }) {
       saveBudget({ ...budget, [group]: [...budget[group], { id: uid(), name: name.trim(), amount: 0 }] });
     },
     removeItem: (group, id) => saveBudget({ ...budget, [group]: budget[group].filter(it => it.id !== id) }),
-    takeMonthSnapshot: () => {
+    takeMonthSnapshot: (forMonth) => {
       const t = computeTotals(budget, investments);
-      const month = todayISO().slice(0, 7);
+      const month = forMonth || todayISO().slice(0, 7);
       const entry = {
         month, einnahmen: t.einnahmenGesamt, fixkosten: t.fixkostenGesamt, flexkosten: t.flexkostenGesamt, fcf: t.fcf,
         allokation: t.allokationGesamt, nichtAllokiert: t.nichtAllokiert, sparquote: t.sparquote, fixkostenquote: t.fixkostenquote,
       };
       saveBudget({ ...budget, history: [...(budget.history || []).filter(h => h.month !== month), entry] });
+      if (investments.length > 0) putDepotSnapshot(buildDepotSnapshot(investments, month));
       return month;
     },
 
@@ -84,6 +97,18 @@ export function PlanProvider({ children }) {
     addPosition: (pos) => saveInvestments([...investments, { id: uid(), ...pos }]),
     deletePosition: (id) => saveInvestments(investments.filter(p => p.id !== id)),
     updatePosition: (id, patch) => saveInvestments(investments.map(p => p.id === id ? { ...p, ...patch } : p)),
+
+    // Depot-Historie (Monatsstände für Wertentwicklung und Rendite)
+    takeDepotSnapshot: (forMonth) => {
+      const month = forMonth || todayISO().slice(0, 7);
+      putDepotSnapshot(buildDepotSnapshot(investments, month));
+      return month;
+    },
+    addDepotHistoryEntry: ({ month, total, invested }) => {
+      if (!month || total === '' || total === null || total === undefined) return;
+      putDepotSnapshot({ month, savedAt: todayISO(), total: Number(total) || 0, invested: invested === '' || invested === null || invested === undefined ? null : Number(invested), manual: true });
+    },
+    deleteDepotSnapshot: (month) => saveDepotHistory(depotHistory.filter(h => h.month !== month)),
 
     // Pläne
     switchPlan: (id) => { if (id !== activePlanId) activate(id, loadPlanData(id)); },
@@ -94,7 +119,7 @@ export function PlanProvider({ children }) {
       storage.setJSON(`plan:${id}:budget`, BLANK_BUDGET);
       storage.setJSON(`plan:${id}:investments`, []);
       savePlans([...plans, { id, name: trimmed, createdAt: todayISO() }]);
-      activate(id, { budget: BLANK_BUDGET, investments: [] });
+      activate(id, { budget: BLANK_BUDGET, investments: [], depotHistory: [] });
     },
     renamePlan: (id, name) => {
       const trimmed = (name || '').trim();
@@ -108,7 +133,7 @@ export function PlanProvider({ children }) {
         storage.setJSON(`plan:${newId}:budget`, BLANK_BUDGET);
         storage.setJSON(`plan:${newId}:investments`, []);
         savePlans([{ id: newId, name: 'Mein Haushalt', createdAt: todayISO() }]);
-        activate(newId, { budget: BLANK_BUDGET, investments: [] });
+        activate(newId, { budget: BLANK_BUDGET, investments: [], depotHistory: [] });
         return;
       }
       savePlans(remaining);
@@ -118,7 +143,7 @@ export function PlanProvider({ children }) {
       storage.deletePrefix(`plan:${activePlanId}:`);
       storage.setJSON(`plan:${activePlanId}:budget`, BLANK_BUDGET);
       storage.setJSON(`plan:${activePlanId}:investments`, []);
-      setState(s => ({ ...s, budget: BLANK_BUDGET, investments: [] }));
+      setState(s => ({ ...s, budget: BLANK_BUDGET, investments: [], depotHistory: [] }));
       setDataVersion(v => v + 1);
     },
 
@@ -132,7 +157,7 @@ export function PlanProvider({ children }) {
   const totals = useMemo(() => computeTotals(budget, investments), [budget, investments]);
   const activePlan = plans.find(p => p.id === activePlanId);
 
-  const value = { plans, activePlan, activePlanId, budget, investments, totals, saveError, dataVersion, ...actions };
+  const value = { plans, activePlan, activePlanId, budget, investments, depotHistory, totals, saveError, dataVersion, ...actions };
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;
 }
 
