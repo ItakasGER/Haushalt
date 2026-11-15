@@ -1,7 +1,7 @@
 {
   "name": "haushaltsrechnung-ipad",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "description": "Haushaltsrechnung & Investments – iPad-Version (PWA)",
   "scripts": {

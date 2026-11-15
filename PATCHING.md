@@ -14,6 +14,8 @@ src/
 │  ├─ PlanContext.jsx     Zustand + Aktionen (usePlan, useModuleData)
 │  ├─ registry.js         findet Module automatisch
 │  ├─ finance.js          Kennzahlen, Zinseszins (futureValue), Verknüpfungen
+│  ├─ performance.js      Depot: Gewinn/Verlust, Monatsstände, zeitgewichtete Rendite
+│  ├─ allocation.js       Soll/Ist-Allokation und Rebalancing
 │  ├─ format.js           €/%-Formatierung, deutsche Zahleneingabe
 │  ├─ theme.js            Farben
 │  ├─ storage.js          lokaler Speicher (Präfix "findash:", wie Mac)
@@ -25,6 +27,7 @@ src/
    ├─ erfassung/          order 10
    ├─ auswertung/         order 20
    ├─ investments/        order 30
+   ├─ depot-analyse/      order 35
    ├─ forecast/           order 40
    ├─ daten/              order 90
    └─ _vorlage/           Vorlage (wird ignoriert, weil "_")
