@@ -58,7 +58,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "hardenedRuntime": false
     },
     "dmg": {
       "title": "Haushalt ${version}"
