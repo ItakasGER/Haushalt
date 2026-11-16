@@ -64,7 +64,7 @@ function Daten() {
 
       <Card title="BACKUP ERSTELLEN">
         <p className="text-sm mb-3" style={{ color: COLORS.textMuted }}>
-          Sichert {plans.length === 1 ? 'den Haushaltsplan' : `alle ${plans.length} Haushaltspläne`} inkl. Investments und Verlauf als JSON-Datei – z. B. in „Dateien“ / iCloud Drive oder per AirDrop an den Mac.
+          Sichert {plans.length === 1 ? 'den Haushaltsplan' : `alle ${plans.length} Haushaltspläne`} inkl. Investments und Verlauf als JSON-Datei – {__DESKTOP__ ? 'z. B. in iCloud Drive oder per AirDrop ans iPad.' : 'z. B. in „Dateien“ / iCloud Drive oder per AirDrop an den Mac.'}
         </p>
         <Button variant="primary" onClick={exportNow}><Download size={18} /> Backup exportieren</Button>
       </Card>
@@ -77,9 +77,11 @@ function Daten() {
         <Button onClick={() => fileInput.current && fileInput.current.click()}><Upload size={18} /> Datei auswählen</Button>
       </Card>
 
-      <Card title="AUS ZWISCHENABLAGE (VOM MAC)" className="md:col-span-2">
+      <Card title={__DESKTOP__ ? 'AUS ZWISCHENABLAGE (ALTE MAC-APP)' : 'AUS ZWISCHENABLAGE (VOM MAC)'} className="md:col-span-2">
         <p className="text-sm mb-2" style={{ color: COLORS.textMuted }}>
-          Auf dem Mac den Export-Befehl aus der Anleitung (README) in der App-Konsole ausführen, dann hier einfügen – dank „Universelle Zwischenablage“ direkt vom Mac aufs iPad.
+          {__DESKTOP__
+            ? 'In der alten Mac-App den Export-Befehl aus der Anleitung (README) in der Konsole ausführen, dann hier mit ⌘V einfügen.'
+            : 'Auf dem Mac den Export-Befehl aus der Anleitung (README) in der App-Konsole ausführen, dann hier einfügen – dank „Universelle Zwischenablage“ direkt vom Mac aufs iPad.'}
         </p>
         <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={4} placeholder='{"format":"haushalt-backup", …}'
           className="w-full p-3 rounded-lg border font-mono" style={{ borderColor: COLORS.border, fontSize: 14 }} />
@@ -89,7 +91,7 @@ function Daten() {
       <Card title="SPEICHER & VERSION" className="md:col-span-2">
         <div className="text-sm space-y-1.5">
           <div className="flex items-center gap-2"><HardDrive size={16} />
-            Dauerhafter Speicher: {persisted === true ? 'aktiv' : persisted === false ? 'nicht bestätigt – App über „Zum Home-Bildschirm“ installieren und regelmäßig Backups erstellen' : 'unbekannt'}
+            Dauerhafter Speicher: {__DESKTOP__ ? 'aktiv (Mac-App)' : persisted === true ? 'aktiv' : persisted === false ? 'nicht bestätigt – App über „Zum Home-Bildschirm“ installieren und regelmäßig Backups erstellen' : 'unbekannt'}
           </div>
           <div style={{ color: COLORS.textMuted }}>Daten liegen nur lokal auf diesem Gerät (kein Cloud-Sync). App-Version {__APP_VERSION__}.</div>
         </div>

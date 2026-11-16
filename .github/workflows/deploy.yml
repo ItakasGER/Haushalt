@@ -25,6 +25,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          # Electron wird nur für die Mac-App gebraucht (siehe mac-app.yml)
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run build
       - name: Build nach gh-pages veröffentlichen
         run: |

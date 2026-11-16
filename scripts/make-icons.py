@@ -25,10 +25,29 @@ def draw(size, padding=0.0):
     return img.resize((size, size), Image.LANCZOS)
 
 
+def mac_icon(size):
+    """macOS-Stil: abgerundetes Quadrat mit transparentem Rand."""
+    body = int(size * 0.805)
+    tile = draw(body, padding=0.08)
+    s = 4 * body
+    mask = Image.new('L', (s, s), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, s - 1, s - 1], radius=int(s * 0.225), fill=255)
+    tile.putalpha(mask.resize((body, body), Image.LANCZOS))
+    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    off = (size - body) // 2
+    img.paste(tile, (off, off), tile)
+    return img
+
+
 OUT.mkdir(parents=True, exist_ok=True)
 draw(180).save(OUT / 'apple-touch-icon.png')
 draw(192).save(OUT / 'icon-192.png')
 draw(512).save(OUT / 'icon-512.png')
 draw(512, padding=0.1).save(OUT / 'icon-512-maskable.png')
 draw(64).save(OUT / 'favicon.png')
+
+# Mac-App: 1024 px mit Rand, electron-builder erzeugt daraus das .icns
+MAC = OUT.parent.parent / 'build'
+MAC.mkdir(exist_ok=True)
+mac_icon(1024).save(MAC / 'icon.png')
 print('Icons geschrieben nach', OUT)

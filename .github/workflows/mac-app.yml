@@ -1,0 +1,58 @@
+# Baut die Mac-App (Electron, .dmg für Apple Silicon und Intel) aus demselben Code
+# wie die iPad-Version. Bei jedem Push auf "main" landet der Build als Release
+# "v<Version aus package.json>" unter Releases – die Mac-App zeigt dann
+# "Version … ist verfügbar". Pushes auf "desktop/**" bauen nur testweise
+# (Download unter Actions → Artefakte), ohne Release.
+name: Mac-App bauen
+
+on:
+  push:
+    branches: [main, 'desktop/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: App bauen und als .dmg verpacken
+        run: npm run dist:mac
+        env:
+          # Kein Apple-Developer-Zertifikat: nur lokale (Ad-hoc-)Signatur, siehe README
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Signatur prüfen
+        run: |
+          for app in release/mac*/Haushalt.app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+          done
+          ls -lh release/*.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haushalt-mac
+          path: release/*.dmg
+          if-no-files-found: error
+      - name: Release veröffentlichen
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          NOTES="Mac-App passend zur iPad-Version $VERSION. Apple Silicon (M1 und neuer): …-mac-arm64.dmg, Intel: …-mac-x64.dmg. Installation und erster Start: siehe README, Abschnitt Mac-App. Änderungen: siehe CHANGELOG.md."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/*.dmg --clobber
+          else
+            gh release create "$TAG" release/*.dmg --target "$GITHUB_SHA" --title "Haushalt $VERSION" --notes "$NOTES" --latest
+          fi

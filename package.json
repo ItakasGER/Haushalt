@@ -1,13 +1,16 @@
 {
-  "name": "haushaltsrechnung-ipad",
+  "name": "haushaltsrechnung",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
-  "description": "Haushaltsrechnung & Investments – iPad-Version (PWA)",
+  "description": "Haushaltsrechnung & Investments – iPad (PWA) und Mac (Electron) aus einem Code",
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
+    "build:desktop": "vite build --mode desktop",
+    "desktop": "npm run build:desktop && electron .",
+    "dist:mac": "npm run build:desktop && electron-builder --mac --publish never",
     "icons": "python3 scripts/make-icons.py"
   },
   "dependencies": {
@@ -19,9 +22,46 @@
   "devDependencies": {
     "@vitejs/plugin-react": "4.7.0",
     "autoprefixer": "10.4.27",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
     "postcss": "8.5.31",
     "tailwindcss": "3.4.19",
     "vite": "5.4.21",
     "vite-plugin-pwa": "0.21.2"
+  },
+  "author": "ItakasGER",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "de.itakasger.haushalt",
+    "productName": "Haushalt",
+    "copyright": "Privat",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "artifactName": "Haushalt-${version}-mac-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.finance",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Haushalt ${version}"
+    }
   }
 }

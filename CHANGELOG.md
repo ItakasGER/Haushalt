@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0 – Mac-App auf iPad-Stand
+- Neue Mac-App „Haushalt“ aus demselben Code wie die iPad-Version: gleicher
+  Funktionsumfang inkl. Depot-Analyse, Rebalancing und Forecast-Horizont
+- Automatischer Build als `.dmg` (Apple Silicon und Intel) bei jedem Push auf `main`,
+  Download unter Releases
+- Mac-App meldet, wenn eine neuere Version veröffentlicht wurde
+- Deutsches Menü, Fenstergröße wird gemerkt, Backup-Export über den Sichern-Dialog
+- Bereich „Daten“: Texte je Gerät angepasst, Datenübernahme aus der alten Mac-App
+
 ## 2.1.0 – Depot-Analyse
 - Investments: Einstandswert je Titel, Gewinn/Verlust in € und %, sortierbare Tabelle
 - „Depotstand speichern“ mit Monatsauswahl; „Monat speichern“ sichert den Depotstand mit

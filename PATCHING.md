@@ -23,6 +23,7 @@ src/
 │  ├─ migrations.js       Datenmigrationen bei Formatänderungen
 │  └─ defaults.js         Startwerte
 ├─ ui/                    wiederverwendbare Bausteine (Card, NumberField, Button …)
+├─ desktop/               nur Mac-App: Versionsabgleich, Service-Worker-Platzhalter
 └─ modules/
    ├─ erfassung/          order 10
    ├─ auswertung/         order 20
@@ -32,6 +33,10 @@ src/
    ├─ daten/              order 90
    └─ _vorlage/           Vorlage (wird ignoriert, weil "_")
 ```
+
+`electron/main.cjs` ist die Mac-Hülle (Fenster, Menü). Sie lädt dieselbe Oberfläche;
+Module müssen dafür nichts Besonderes tun. Wo sich iPad und Mac unterscheiden sollen,
+steht die Konstante `__DESKTOP__` bereit (`true` in der Mac-App).
 
 ## Neues Modul in 3 Schritten
 
@@ -91,6 +96,12 @@ läuft auf jedem Gerät genau einmal, beim Import alter Backups ebenfalls.
    Status unter *Actions* im Repository)
 4. Auf dem iPad erscheint beim nächsten Öffnen **„Eine neue Version ist verfügbar“**,
    dann auf *Jetzt aktualisieren* tippen. Die Daten bleiben erhalten.
+5. Parallel baut GitHub die Mac-App und legt sie als Release `v<Version>` ab
+   (`.github/workflows/mac-app.yml`). Die Mac-App zeigt **„Version … ist verfügbar“**;
+   neue `.dmg` laden und die App in *Programme* ersetzen.
+
+Wichtig: Die Versionsnummer bei jeder Änderung erhöhen. Nur daran erkennt die Mac-App
+ein Update.
 
 ## Patches mit Claude
 
